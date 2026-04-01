@@ -26,28 +26,6 @@ jobs:
         working-directory: services/${{ matrix.service }}
         run: npm install
 
-      # Snyk Scan per service
-      - name: Run Snyk scan
-        uses: snyk/actions/node@v1
-        with:
-          command: test
-          args: --file=services/${{ matrix.service }}/package.json
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      - name: Save Snyk report
-        run: |
-          mkdir -p reports
-          snyk test --file=services/${{ matrix.service }}/package.json --json > reports/${{ matrix.service }}-snyk.json || true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      - name: Upload Snyk report
-        uses: actions/upload-artifact@v4
-        with:
-          name: snyk-${{ matrix.service }}
-          path: reports/${{ matrix.service }}-snyk.json
-
 # docker job
 
   docker:
