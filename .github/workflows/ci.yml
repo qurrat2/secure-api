@@ -1,10 +1,9 @@
-name: CI Pipeline
+name: CI + Snyk + Docker
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -15,10 +14,10 @@ jobs:
         service: [auth-service, api-gateway]
 
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
@@ -27,6 +26,51 @@ jobs:
         working-directory: services/${{ matrix.service }}
         run: npm install
 
-      - name: Run basic check
-        working-directory: services/${{ matrix.service }}
-        run: node -e "console.log('Service is build-ready')"
+      # Snyk Scan per service
+      - name: Run Snyk scan
+        uses: snyk/actions/node@v1
+        with:
+          command: test
+          args: --file=services/${{ matrix.service }}/package.json
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Save Snyk report
+        run: |
+          mkdir -p reports
+          snyk test --file=services/${{ matrix.service }}/package.json --json > reports/${{ matrix.service }}-snyk.json || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Upload Snyk report
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-${{ matrix.service }}
+          path: reports/${{ matrix.service }}-snyk.json
+
+# docker job
+
+  docker:
+    needs: build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service: [auth-service, api-gateway]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PWD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: services/${{ matrix.service }}
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:latest
