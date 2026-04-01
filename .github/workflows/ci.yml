@@ -33,14 +33,14 @@ jobs:
           command: test
           args: --file=services/${{ matrix.service }}/package.json
         env:
-          SNYK_TOKEN: ${{ secrets.SYNK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Save Snyk report
         run: |
           mkdir -p reports
           snyk test --file=services/${{ matrix.service }}/package.json --json > reports/${{ matrix.service }}-snyk.json || true
         env:
-          SNYK_TOKEN: ${{ secrets.SYNK_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Upload Snyk report
         uses: actions/upload-artifact@v4
